@@ -1,0 +1,119 @@
+name: mongo-replica-set
+services:
+  # Nodo Primario
+  mongo-1:
+    image: mongo:${MONGO_VERSION}
+    container_name: ${MONGO_PRIMARY}
+    restart: always
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
+    ports:
+      - ${MONGO_PORT}:27017
+    volumes:
+      - mongo_db_1:/data/db
+      - mongo_configdb_1:/data/configdb
+      - ./scripts/mongo-replica.key:/data/mongo-replica.key
+    depends_on:
+      - mongo-2
+      - mongo-3
+      - mongo-4
+    entrypoint:
+      - bash
+      - -c
+      - |
+          chmod 400 /data/mongo-replica.key
+          chown 999:999 /data/mongo-replica.key
+          exec docker-entrypoint.sh $$@
+    command: "mongod --bind_ip_all --replSet ${MONGO_REPLICA_SET_NAME} --keyFile /data/mongo-replica.key"
+
+  # Primer Nodo Secundario
+  mongo-2:
+    image: mongo:${MONGO_VERSION}
+    container_name: ${MONGO_SECONDARY_1}
+    restart: always
+    expose:
+      - 27017
+    volumes:
+      - mongo_db_2:/data/db
+      - mongo_configdb_2:/data/configdb
+      - ./scripts/mongo-replica.key:/data/mongo-replica.key
+    entrypoint:
+      - bash
+      - -c
+      - |
+          chmod 400 /data/mongo-replica.key
+          chown 999:999 /data/mongo-replica.key
+          exec docker-entrypoint.sh $$@
+    command: "mongod --bind_ip_all --replSet ${MONGO_REPLICA_SET_NAME} --keyFile /data/mongo-replica.key"
+
+  # Segundo Nodo Secundario
+  mongo-3:
+    image: mongo:${MONGO_VERSION}
+    container_name: ${MONGO_SECONDARY_2}
+    restart: always
+    expose:
+      - 27017
+    volumes:
+      - mongo_db_3:/data/db
+      - mongo_configdb_3:/data/configdb
+      - ./scripts/mongo-replica.key:/data/mongo-replica.key
+    entrypoint:
+      - bash
+      - -c
+      - |
+          chmod 400 /data/mongo-replica.key
+          chown 999:999 /data/mongo-replica.key
+          exec docker-entrypoint.sh $$@
+    command: "mongod --bind_ip_all --replSet ${MONGO_REPLICA_SET_NAME} --keyFile /data/mongo-replica.key"
+
+  # Árbitro
+  mongo-4:
+    image: mongo:${MONGO_VERSION}
+    container_name: ${MONGO_ARBITER}
+    restart: always
+    expose:
+      - 27017
+    volumes:
+      - mongo_db_4:/data/db
+      - mongo_configdb_4:/data/configdb
+      - ./scripts/mongo-replica.key:/data/mongo-replica.key
+    entrypoint:
+      - bash
+      - -c
+      - |
+          chmod 400 /data/mongo-replica.key
+          chown 999:999 /data/mongo-replica.key
+          exec docker-entrypoint.sh $$@
+    command: "mongod --bind_ip_all --replSet ${MONGO_REPLICA_SET_NAME} --keyFile /data/mongo-replica.key"
+
+  # Configuración inicial
+  mongo-setup:
+    image: mongo:${MONGO_VERSION}
+    container_name: mongo-setup
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
+      MONGO_REPLICA_SET_NAME: ${MONGO_REPLICA_SET_NAME}
+      MONGO_PRIMARY_PRIORITY: ${MONGO_PRIMARY_PRIORITY}
+      MONGO_SECONDARY_PRIORITY: ${MONGO_SECONDARY_PRIORITY}
+      MONGO_ARBITER_PRIORITY: ${MONGO_ARBITER_PRIORITY}
+    depends_on:
+      - mongo-1
+      - mongo-2
+      - mongo-3
+      - mongo-4
+    volumes:
+      - ./scripts/setup.sh:/scripts/setup.sh
+    restart: on-failure
+    entrypoint: ["/bin/bash", "/scripts/setup.sh"]
+
+volumes:
+    mongo_db_1:
+    mongo_configdb_1:
+    mongo_db_2:
+    mongo_configdb_2:
+    mongo_db_3:
+    mongo_configdb_3:
+    mongo_db_4:
+    mongo_configdb_4:
